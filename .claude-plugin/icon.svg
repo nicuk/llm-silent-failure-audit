@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Cairn Signals">
+  <rect width="256" height="256" rx="56" fill="#1E2B2F"/>
+  <rect x="44" y="206" width="168" height="6" rx="3" fill="#2F4247"/>
+  <rect x="52" y="160" width="152" height="46" rx="23" fill="#C9B79C"/>
+  <rect x="72" y="118" width="116" height="42" rx="21" fill="#B09A7C" transform="rotate(-4 130 139)"/>
+  <rect x="88" y="80" width="84" height="38" rx="19" fill="#D8CAB3" transform="rotate(3 130 99)"/>
+  <rect x="104" y="48" width="50" height="32" rx="16" fill="#3CC4B0" transform="rotate(-5 129 64)"/>
+  <path d="M170 40 a26 26 0 0 1 0 36" fill="none" stroke="#3CC4B0" stroke-width="7" stroke-linecap="round"/>
+  <path d="M188 28 a44 44 0 0 1 0 60" fill="none" stroke="#3CC4B0" stroke-width="7" stroke-linecap="round" opacity="0.55"/>
+</svg>

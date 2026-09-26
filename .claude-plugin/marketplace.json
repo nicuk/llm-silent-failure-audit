@@ -1,0 +1,12 @@
+{
+  "name": "cairn-signals",
+  "description": "Cairn Signals: check whether an AI product's numbers are real.",
+  "owner": { "name": "Nic Chin", "url": "https://nicchin.com" },
+  "plugins": [
+    {
+      "name": "cairn-signals",
+      "source": "./",
+      "description": "Trace every number your AI product shows back to what writes it, and find the silent failures in between."
+    }
+  ]
+}
