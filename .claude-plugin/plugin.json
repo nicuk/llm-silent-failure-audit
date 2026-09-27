@@ -1,7 +1,7 @@
 {
   "name": "cairn-signals",
   "displayName": "Cairn Signals — are your AI product's numbers real?",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Finds the silent failures that make an AI product look healthy while its numbers are wrong: confidence scores fed by fields nothing writes, cost meters that save nothing, failures that become a believable 0, evals that can't fail, benchmarks that can't be re-run. Traces each trusted number to its writer, with a self-testing scanner and one-line fixes proven to fail.",
   "author": { "name": "Nic Chin", "url": "https://nicchin.com" },
   "homepage": "https://github.com/nicuk/llm-silent-failure-audit#readme",

@@ -2,6 +2,37 @@
 
 Each release raises `version` in `.claude-plugin/plugin.json` and is tagged `vX.Y.Z`.
 
+## 1.2.0 (2026-09-27)
+
+Measured on four open-source RAG apps (all HIGH findings labeled, MEDIUM sampled with a fixed
+seed): precision went from 10.9% to 37.1%, and recall on 16 planted defects from 11 to 16,
+with every control still clean. HIGH findings fell from 38 to 16, but none of the 16 was a
+confirmed real problem (6 false alarms, 10 unclear), so HIGH is still a lead to check, not a
+verdict. Still 11 checks.
+
+**Fixed**
+- `reader-no-writer`: a method call is no longer read as a field (`metadata.extend(` was the
+  field `exten`); `import.meta`, prose, and words inside strings, prompt templates and
+  comments are no longer reads; a `.get("name", default)` no longer counts as its own writer;
+  a read on a `* ...` continuation line is no longer skipped as a comment. A field read from
+  what an out-of-tree call returns (`s3.head_object(...)`) is INFO, since its writer is a
+  library or another service.
+- `llm-call-uncapped`: method definitions and declarations are no longer calls; a model
+  built with a cap in the same file counts as capped; a cap whose value can be undefined
+  (`maxTokens: this.config.options?.maxTokens`) is reported.
+- `loop-uncapped`: a loop that ends on a sentinel, or calls no model or tool, is INFO;
+  loop words in docstrings are no longer loops.
+- `swallowed-error` reads the handler's own block, so a catch that logs isn't empty.
+- `fire-and-forget-meter` is reported on the call that writes, and a line mentioning
+  "meter" above an unrelated `.close()` no longer makes it a meter.
+
+**Added**
+- Python idioms: any `*debug*` flag (`debug_mode`), a bare `asyncio.create_task(...)` or
+  `executor.submit(...)` meter write, and `.complete/.chat/.invoke/.stream` (and async
+  forms) on a receiver named like a model.
+- `--self-test` has a must-find and a must-not-find case for each of these, and each fix
+  was broken once to prove its case fails.
+
 ## 1.1.0 (2026-09-27)
 
 **Changed**
