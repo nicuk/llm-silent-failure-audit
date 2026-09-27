@@ -205,6 +205,12 @@ def scan_code(rel: str, lines: list[str], out: list[Finding], include_tests: boo
             if re.search(r"expect\(\s*true\s*\)\.toBe\(\s*true\s*\)|assert\s+True\b|assert\s*\(\s*true\s*\)|expect\(\s*1\s*\)\.toBe\(\s*1\s*\)", line):
                 out.append(Finding("HIGH", "eval-cannot-fail", rel, n, raw.strip()[:140],
                                    "This assertion passes whatever the system does."))
+            # `score >= 0` passes for every non-negative score, so it checks nothing about quality.
+            if re.search(r"^\s*assert\s+[\w.\[\]()'\"]+\s*>=\s*0(\.0+)?\s*(,.*)?$"
+                         r"|\bassert\s*\(\s*[\w.\[\]()]+\s*>=\s*0(\.0+)?\s*\)"
+                         r"|\.toBeGreaterThanOrEqual\(\s*0(\.0+)?\s*\)", line):
+                out.append(Finding("HIGH" if evalish else "MEDIUM", "eval-cannot-fail", rel, n, raw.strip()[:140],
+                                   "`>= 0` holds for every non-negative score, so this passes whatever the system does. What score should fail?"))
             if evalish and re.search(r"(threshold|min_?score|pass_?rate|minPass\w*)\s*[:=]\s*0(\.0+)?\s*[,;)]?\s*$", line, re.I):
                 out.append(Finding("HIGH", "eval-cannot-fail", rel, n, raw.strip()[:140],
                                    "A zero threshold means every run passes. What score should fail the build?"))
@@ -327,7 +333,17 @@ it('passes', () => { expect(true).toBe(true); });
 const threshold = 0;
 """,
         "eval/golden.json": '{"cases":[{"tenant":"REPLACE_WITH_TENANT","q":"x"}]}',
+        # Only the `>= 0` patterns can fire in these two files, so each pattern is proven on its own.
+        "eval/test_accuracy.py": """
+def test_accuracy(results):
+    score = sum(r.correct for r in results) / len(results)
+    assert score >= 0
+""",
+        "eval/recall.test.ts": """
+expect(passRate).toBeGreaterThanOrEqual(0);
+""",
     }
+    must_hit = [("eval-cannot-fail", "eval/test_accuracy.py"), ("eval-cannot-fail", "eval/recall.test.ts")]
     expected = {"fallback-fabricates", "swallowed-error", "metric-coalesce", "debug-gated-telemetry",
                 "fire-and-forget-meter", "llm-call-uncapped", "loop-uncapped", "eval-cannot-fail",
                 "eval-placeholder", "reader-no-writer", "model-id"}
@@ -343,7 +359,11 @@ const threshold = 0;
     wrongly = [f for f in found if f.check == "reader-no-writer" and "similarity" in f.snippet and "document_type" not in f.snippet]
     for c in sorted(expected):
         print(f"{'ok  ' if c in fired else 'MISS'} {c}")
-    ok = expected <= fired and not wrongly
+    hit = {(f.check, f.file.replace(os.sep, "/")) for f in found}
+    missed_cases = [mh for mh in must_hit if mh not in hit]
+    for check, rel in missed_cases:
+        print(f"MISS {check} in {rel}")
+    ok = expected <= fired and not wrongly and not missed_cases
     if wrongly:
         print("FALSE POSITIVE: reader-no-writer flagged `similarity`, which src/ingest.ts writes")
     print(f"\nself-test {'passed' if ok else 'FAILED'}: {len(expected & fired)}/{len(expected)} checks fired"
