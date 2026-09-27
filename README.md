@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-16A34A?style=flat-square)](LICENSE)
 [![Privacy: nothing collected](https://img.shields.io/badge/privacy-nothing_collected-6CCBFF?style=flat-square)](PRIVACY.md)
 
-**[Install](#install)** · **[What you get](#what-you-get)** · **[The scanner](#the-scanner)** · **[Privacy](#privacy)**
+**[Install](#install)** · **[What you get](#what-you-get)** · **[The script](#the-script)** · **[Privacy](#privacy)** · **[The Cairn family](#the-cairn-family)**
 
 **Your AI product can look perfectly healthy while the numbers it shows are wrong.
 Cairn Signals traces each number back to the code that produces it, and finds the silent
@@ -34,7 +34,19 @@ ships a scanner that shows where to look first:
 
 *Real output, from a small made-up app with planted problems.*
 
-Ask it in plain words:
+## Who it's for
+
+If you've shipped an AI feature (a chatbot, a RAG search, an AI score or recommendation)
+and put its numbers in front of users, investors or a customer, you have probably seen one
+of these:
+
+- A confidence score that never moves, or never reaches "high".
+- An LLM bill that doesn't match your traffic, next to a cost dashboard that says $0.
+- Evals that are always green, even after something broke.
+- An accuracy figure on your site that nobody can re-run.
+
+None of this means the model is bad. It means a number isn't connected to what it claims to
+measure. You don't need to read the code to find out which. Ask in plain words:
 
 - *"Can I trust the numbers our AI product shows? We're pitching investors next week."*
 - *"Our LLM bill doubled but traffic didn't, and the cost dashboard says $0."*
@@ -53,7 +65,7 @@ Ask it in plain words:
 | **Honesty about published numbers** | Accuracy and benchmark claims are checked for a date, a runnable case count and a command that still reproduces them. |
 | **A 0–10 score** | Every point cites evidence, and checks that don't apply to your product are marked N/A rather than scored 0. |
 
-## What it covers, and what to use instead
+## How it compares
 
 Cairn Signals asks one question: **are the numbers real?** These neighbouring jobs are
 already well served, so it points to them rather than redoing them:
@@ -64,6 +76,7 @@ already well served, so it points to them rather than redoing them:
 | Designing evals, calibrating LLM judges | `evals-skills` |
 | Adding tracing and observability | the Langfuse or MLflow plugins |
 | Tuning chunking and retrieval | `claude-rag-skills` |
+| **Whether each number your product shows is connected to what it claims to measure** | **Cairn Signals** |
 
 ## Install
 
@@ -72,7 +85,7 @@ already well served, so it points to them rather than redoing them:
 /plugin install cairn-signals@cairn-signals
 ```
 
-## The scanner
+## The script
 
 `skills/ai-signals-audit/scripts/scan_signals.py` finds where to look in a JS/TS or
 Python codebase. It checks for scores fed by fields nothing writes, failures that return
@@ -123,6 +136,19 @@ Treat this as a small test, not proof. The incidents behind every check are in
 
 Nothing is collected. See [PRIVACY.md](PRIVACY.md).
 
+## The Cairn family
+
+Three plugins built on one principle: **a claim with an enforcer stays true; a claim with
+only an author rots.** Each one checks a different kind of claim.
+[The principles, the evidence and the design decisions](https://github.com/nicuk/cairn) are
+in one place.
+
+| Plugin | The question it answers |
+|---|---|
+| [Cairn Memory](https://github.com/nicuk/claude-md-memory-architecture) | Is what your agents remember cheap to load, and still true? |
+| **Cairn Signals** (this one) | Are the numbers your AI product shows real? |
+| [Cairn Verify](https://github.com/nicuk/did-ai-really-fix-it) | Did the AI really fix it? |
+
 ## Who made this
 
 Built by [Nic Chin](https://nicchin.com/?ref=cairn-signals), who reviews AI products and
@@ -131,10 +157,6 @@ customers, an independent
 [AI assurance review](https://nicchin.com/ai-assurance?ref=cairn-signals) covers the
 parts a code scan can't see, such as production data and live traffic. The plugin is
 free and complete either way. Nothing in it is held back.
-
-Also in the Cairn family:
-[Cairn Memory](https://github.com/nicuk/claude-md-memory-architecture), for agent memory
-that stays true.
 
 ## License
 
