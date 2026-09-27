@@ -122,6 +122,8 @@ can reach the network.
 
 ## Evidence
 
+**Case study:** [The confidence score that could never say "high"](https://github.com/nicuk/cairn-principles/blob/main/case-studies/signals-confidence-capped.md).
+
 In testing, runs with the skill were compared with runs of the same model without it,
 across three prompts:
 

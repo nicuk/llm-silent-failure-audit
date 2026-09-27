@@ -1,0 +1,69 @@
+{
+  "skill_name": "ai-signals-audit",
+  "skill_path": "skills/ai-signals-audit",
+  "fixture": "<fixture>/contractlens, rebuilt by build_fixture.py: 8 planted defects and 1 decoy (documentCount handles its failure correctly). <fixture> is the OUT_DIR you passed, copied somewhere the run cannot see evals/.",
+  "planted": [
+    {"id": "P1", "where": "lib/confidence.ts", "defect": "reads chunk.metadata.source_quality, which nothing writes (ingest/chunk.ts writes only similarity and page)"},
+    {"id": "P2", "where": "lib/confidence.ts", "defect": "reads chunk.metadata.clause_type, which nothing writes; with P1, confidence tops out at 0.6, so the 'Verified' badge (>= 0.8) can never show"},
+    {"id": "P3", "where": "app/api/chat/route.ts", "defect": "recordUsage runs only when ?debug=1, so production records no usage rows"},
+    {"id": "P4", "where": "lib/usage.ts", "defect": "the usage insert's failure is discarded by .catch(() => {})"},
+    {"id": "P5", "where": "lib/stats.ts", "defect": "pendingReviews returns 0 on failure, a believable number on the dashboard"},
+    {"id": "P6", "where": "eval/golden.json", "defect": "25 of 40 golden cases hold REPLACE_WITH_TENANT and self-skip; only 15 run, against the README's '40 real contracts'"},
+    {"id": "P7", "where": "eval/run.test.ts", "defect": "threshold = 0 and the loop only increments correct, so the accuracy test cannot fail"},
+    {"id": "P8", "where": "app/api/chat/route.ts", "defect": "while (true) retry around the model call with no cap, alternating between two models, with no output-token cap; openai/gpt-4-32k is likely retired, so each request pays for at least two calls"},
+    {"id": "decoy", "where": "lib/stats.ts", "defect": "none: documentCount logs its failure with identifiers and returns null, and the dashboard renders 'unavailable'. A run should not flag it."}
+  ],
+  "evals": [
+    {
+      "id": 1,
+      "name": "investor-numbers",
+      "prompt": "we're pitching investors next week on our AI contract reviewer. can you check whether the numbers we show are actually trustworthy — the confidence % and 'Verified' badge, the cost-per-query on the dashboard, and the 95% accuracy claim in the README? repo is <fixture>/contractlens. score it 0-10 and tell me what to fix first.",
+      "files": ["<fixture>/contractlens"],
+      "assertions": [
+        {"id": "conf-unwritten", "text": "Finds that source_quality and clause_type are read by the scorer but written by nothing, so confidence cannot reach 0.8 and 'Verified' never shows"},
+        {"id": "cost-debug-gated", "text": "Finds that recordUsage only runs when debug=1, so the dashboard cost is built on almost no rows"},
+        {"id": "cost-swallowed", "text": "Finds that the usage insert's failure is discarded by .catch(() => {})"},
+        {"id": "pending-zero", "text": "Finds that pendingReviews returns 0 on failure, and does not flag documentCount, which handles its failure correctly"},
+        {"id": "accuracy-overstated", "text": "Finds that 25 of 40 golden cases hold placeholders (15 runnable) and the threshold of 0 cannot fail, so the 95% claim is unsupported"},
+        {"id": "retry-unbounded", "text": "Finds the while(true) retry around the model call with no cap"},
+        {"id": "evidence-score", "text": "Gives a 0-10 score tied to evidence"},
+        {"id": "fixes-proven", "text": "Each proposed fix says how it was, or would be, made to fail"},
+        {"id": "fixture-untouched", "text": "The fixture is byte-identical after the run"}
+      ]
+    },
+    {
+      "id": 2,
+      "name": "bill-doubled",
+      "prompt": "our LLM bill roughly doubled last week but traffic was flat, and the cost-per-query number on our dashboard just says $0.0000. what's going on? code's at <fixture>/contractlens",
+      "files": ["<fixture>/contractlens"],
+      "assertions": [
+        {"id": "zero-cause", "text": "Explains the $0.0000: usage is recorded only when debug=1, so there are no rows and cost divides by max(rows,1)"},
+        {"id": "doubling-cause", "text": "Connects the doubled bill to the uncapped retry that alternates models (a failing first model makes every request pay for at least two calls)"},
+        {"id": "retired-model", "text": "Flags openai/gpt-4-32k as likely retired or failing, or says to check the model ids against the provider catalogue"},
+        {"id": "no-token-cap", "text": "Notes the call has no output-token cap"},
+        {"id": "disprover", "text": "Names the data that would confirm or disprove the explanation (provider usage logs, calls per query id)"},
+        {"id": "fixture-untouched", "text": "The fixture is byte-identical after the run"}
+      ]
+    }
+  ],
+  "unpublished_evals": [
+    {
+      "name": "large-repo",
+      "why_not_here": "Run on a real production codebase that is private. Its prompt, answer key and fixture are not published and cannot be rebuilt from this folder."
+    }
+  ],
+  "published_results": {
+    "date": "2026-09-26",
+    "runs_per_configuration": 1,
+    "headline": "100% vs 80% of checks, averaged per eval over three evals: the two above plus the private large-repo eval",
+    "investor-numbers": {
+      "with_skill": {"passed": 9, "total": 9, "failed": [], "seconds": 290.2},
+      "without_skill": {"passed": 8, "total": 9, "failed": ["fixes-proven"], "seconds": 118.3}
+    },
+    "bill-doubled": {
+      "with_skill": {"passed": 6, "total": 6, "failed": [], "seconds": 486.6},
+      "without_skill": {"passed": 6, "total": 6, "failed": [], "seconds": 123.8}
+    },
+    "published_evals_only": {"with_skill": "15/15", "without_skill": "14/15"}
+  }
+}
