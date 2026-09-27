@@ -1,4 +1,13 @@
-# Cairn Signals: are your AI product's numbers real?
+![Cairn](assets/cairn-logo.png)
+
+![Are your AI product's numbers real? Three stones stack into a cairn.](assets/hero.svg)
+
+[![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-0A6CFF?style=flat-square)](#install)
+[![Self-test](https://img.shields.io/github/actions/workflow/status/nicuk/llm-silent-failure-audit/self-test.yml?branch=main&label=self-test&style=flat-square)](.github/workflows/self-test.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-16A34A?style=flat-square)](LICENSE)
+[![Privacy: nothing collected](https://img.shields.io/badge/privacy-nothing_collected-6CCBFF?style=flat-square)](PRIVACY.md)
+
+**[Install](#install)** · **[What you get](#what-you-get)** · **[The scanner](#the-scanner)** · **[Privacy](#privacy)**
 
 **Your AI product can look perfectly healthy while the numbers it shows are wrong.
 Cairn Signals traces each number back to the code that produces it, and finds the silent
@@ -18,7 +27,14 @@ The dangerous failures in an AI product throw no error and return no 500:
   looks exactly like a real zero.
 - **A retired model that fails into a fallback.** Every request quietly pays for two calls.
 
-Cairn Signals is a skill for Claude Code. Ask it in plain words:
+Cairn Signals is a skill for Claude Code. It traces each number to what writes it, and
+ships a scanner that shows where to look first:
+
+![The scanner's self-test fires all 11 checks, then a scan of a small app finds cost telemetry that only runs in debug, an eval that cannot fail, a failure that becomes 0, a score input nothing writes and an uncapped model call.](assets/scan-demo.svg)
+
+*Real output, from a small made-up app with planted problems.*
+
+Ask it in plain words:
 
 - *"Can I trust the numbers our AI product shows? We're pitching investors next week."*
 - *"Our LLM bill doubled but traffic didn't, and the cost dashboard says $0."*
@@ -26,6 +42,8 @@ Cairn Signals is a skill for Claude Code. Ask it in plain words:
 - *"Audit our RAG app before we publish our accuracy number."*
 
 ## What you get
+
+![What the scanner looks for. Numbers fed by nothing: a score input nothing writes, a metric defaulted to 0, cost telemetry only in debug. Failures that look like success: a failure that returns 0, an empty catch near model code, a meter write whose failure vanishes, a retired model failing into a fallback. Checks and costs that can't fail: an eval that always passes, eval cases that skip themselves, no output-token cap, an unbounded retry loop.](assets/checks.svg)
 
 | | |
 |---|---|
@@ -70,6 +88,11 @@ python skills/ai-signals-audit/scripts/scan_signals.py path/to/your/repo
 It is a locator, not a judge. Each hit comes with the question to ask at that line, and
 the skill turns hits into verdicts by reading the code. `--fail-on HIGH` makes it a CI
 gate once you've triaged the findings.
+
+`--self-test` plants one defect for each check in a temporary folder and confirms every
+check fires. A check that has never failed has never been tested. The self-test badge at
+the top runs it on every push, along with a check that the scanner imports nothing that
+can reach the network.
 
 ## What it runs, and what it doesn't
 
