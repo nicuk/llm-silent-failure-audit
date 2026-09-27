@@ -201,6 +201,40 @@ def layers() -> str:
 """
 
 
+def icon() -> str:
+    """The plugin icon: the Cairn mark on white, as a vector.
+
+    Written to .claude-plugin/icon.svg, which the directory picks up by file name, so
+    plugin.json needs no `icon` field (the field drew an UNKNOWN_KEY_CROSS_TOOL warning).
+    Matches the logo's mark: the upper stones lifted to leave a gap, and the base stone
+    two-toned by a darker band clipped to its outline.
+    """
+    p = {name: (d, stops, v) for name, d, stops, v in PEBBLES}
+    lift = {"middle": -34, "top": -62}
+
+    def grad(gid, stops, v):
+        x1, y1, x2, y2 = v
+        s = "".join(f'<stop offset="{o}" stop-color="{c}"/>' for o, c in stops)
+        return f'<linearGradient id="{gid}" x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}">{s}</linearGradient>'
+
+    shade = "M200,1060 L200,820 C330,760 470,760 560,800 C680,852 790,960 1000,1000 L1000,1080 Z"
+    defs = (grad("ib", [("0", "#1E4FB8"), ("1", "#2A6BE6")], (0, 1, 1, 0))
+            + grad("is", [("0", "#0E1838"), ("1", "#1A2E6E")], (0, 0, 1, 1))
+            + grad("im", *p["middle"][1:]) + grad("it", *p["top"][1:])
+            + f'<clipPath id="cb"><path d="{p["bottom"][0]}"/></clipPath>')
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="22 -15 1220 1220" width="512" height="512" role="img" aria-label="Cairn">'
+            f'<defs>{defs}</defs><rect x="22" y="-15" width="1220" height="1220" fill="#FFFFFF"/>'
+            f'<path d="{p["bottom"][0]}" fill="url(#ib)"/>'
+            f'<path d="{shade}" fill="url(#is)" clip-path="url(#cb)"/>'
+            f'<path d="{p["middle"][0]}" fill="url(#im)" transform="translate(0 {lift["middle"]})"/>'
+            f'<path d="{p["top"][0]}" fill="url(#it)" transform="translate(0 {lift["top"]})"/>'
+            '</svg>' + chr(10))
+
+
 for name, fn in [("hero.svg", hero), ("scan-demo.svg", terminal), ("checks.svg", layers)]:
     (OUT / name).write_text(fn(), encoding="utf-8")
     print(name, len((OUT / name).read_bytes()), "bytes")
+
+ICON_PATH = Path(__file__).resolve().parent.parent / ".claude-plugin" / "icon.svg"
+ICON_PATH.write_text(icon(), encoding="utf-8")
+print("icon.svg", len(ICON_PATH.read_bytes()), "bytes")
