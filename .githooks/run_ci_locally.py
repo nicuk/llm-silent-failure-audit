@@ -29,6 +29,13 @@ import sys
 import tempfile
 from pathlib import Path
 
+# Git runs hooks with GIT_DIR (and sometimes GIT_WORK_TREE / GIT_INDEX_FILE) set. Inherited by
+# a CI step, they redirect any `git` the step runs in another folder, such as a self-test's
+# temporary fixture repo, into THIS repository. On 2026-09-27 that committed a self-test's
+# fixtures onto main, set core.bare, and pushed. Nothing below needs them, so drop them.
+for _k in [k for k in os.environ if k.startswith("GIT_")]:
+    del os.environ[_k]
+
 try:
     import yaml
 except ImportError:
