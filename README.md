@@ -102,6 +102,11 @@ It is a locator, not a judge. Each hit comes with the question to ask at that li
 the skill turns hits into verdicts by reading the code. `--fail-on HIGH` makes it a CI
 gate once you've triaged the findings.
 
+The report is short by default. Every HIGH finding is listed in full, MEDIUM findings
+show the first 5 per check, and INFO findings, such as model ids, become one summary line
+per check. The totals always count everything. `--verbose` lists every finding, and
+`--json` is always complete.
+
 `--self-test` plants one defect for each check in a temporary folder and confirms every
 check fires. A check that has never failed has never been tested. The self-test badge at
 the top runs it on every push, along with a check that the scanner imports nothing that

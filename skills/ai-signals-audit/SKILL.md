@@ -47,9 +47,15 @@ there.
 ### 2. Run the scanner
 
 ```bash
-python <skill-dir>/scripts/scan_signals.py <repo> [--json] [--include-tests]
+python <skill-dir>/scripts/scan_signals.py <repo> [--verbose | --json] [--include-tests]
 python <skill-dir>/scripts/scan_signals.py --self-test
 ```
+
+The default text report is quiet. Every HIGH finding is listed in full. MEDIUM findings
+show the first 5 per check, then a count. INFO findings become one summary line per check,
+and model ids become one line of distinct ids with counts to check against the provider's
+catalogue. The totals line always counts every finding. Use `--verbose` to list every
+finding, or `--json` for the complete machine-readable list (never collapsed).
 
 It is a **locator**, not a judge. Each hit is a place to read, with the question to ask
 there. It checks JS/TS and Python for:

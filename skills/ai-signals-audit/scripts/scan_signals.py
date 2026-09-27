@@ -6,8 +6,13 @@ It is a *locator*, not a judge. Every hit is a place to read, with the question 
 The skill (SKILL.md) turns hits into verdicts by tracing each trusted number to its writer.
 
 Usage:
-  python scan_signals.py PATH [--json] [--include-tests]
+  python scan_signals.py PATH [--verbose | --json] [--include-tests]
   python scan_signals.py --self-test
+
+Output: the text report is quiet by default. Every HIGH finding is listed in full; MEDIUM
+findings show the first 5 per check, then a count; INFO findings are summarised, one line per
+check (model ids as the distinct ids with counts). The totals line always counts everything.
+--verbose lists every finding. --json is always complete.
 
 Checks (JS/TS and Python):
   fallback-fabricates   a catch/except whose only job is to return 0, [], {}, "", null, "N/A"
@@ -32,6 +37,7 @@ import os
 import re
 import sys
 import tempfile
+from collections import Counter
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
@@ -40,6 +46,15 @@ DATA_EXT = {".json", ".jsonl", ".yaml", ".yml", ".csv"}
 SKIP_DIRS = {"node_modules", ".git", ".next", "dist", "build", ".venv", "venv", "__pycache__",
              ".turbo", "coverage", ".vercel", "out", "vendor", ".cache"}
 LEVELS = {"INFO": 0, "MEDIUM": 1, "HIGH": 2}
+MEDIUM_SHOWN = 5  # per check, in the default (quiet) text output; HIGH is never collapsed
+# The INFO summary prints one question per check. Checks whose `ask` names one variable need a
+# question that fits all of them, or the summary would describe the first hit only.
+SUMMARY_ASK = {
+    "metric-coalesce": "A missing value here silently becomes 0, indistinguishable from a real zero. "
+                       "Is 'missing' possible? If so, keep it distinct.",
+}
+MODEL_ID_ASK = ("Check each against the provider's model catalogue: a retired id can fail silently "
+                "into a fallback.")
 
 METRIC_WORDS = r"(score|confidence|cost|usage|tokens?|count|total|accuracy|rate|latency|price|spend|similarity|relevance|faithfulness|precision|recall|hits?)"
 TELEMETRY_WORDS = r"(trace|telemetry|track|meter|usage|cost|analytics|metric|log_event|logEvent|capture|posthog|langfuse|insertEvent|recordUsage)"
@@ -293,6 +308,89 @@ def scan(root: Path, include_tests: bool = False) -> list[Finding]:
     return uniq
 
 
+# ------------------------------------------------------------------ text report
+
+def listed_line(f: Finding) -> str:
+    return f"  {f.file}:{f.line}  {f.snippet}"
+
+
+def totals_line(found: list[Finding]) -> str:
+    counts = {lv: sum(f.level == lv for f in found) for lv in LEVELS}
+    return f"{counts['HIGH']} HIGH, {counts['MEDIUM']} MEDIUM, {counts['INFO']} INFO — each is a place to read, not a verdict"
+
+
+def render_text(found: list[Finding], verbose: bool = False) -> list[str]:
+    """The text report. Quiet by default: every HIGH in full, MEDIUM capped per check,
+    INFO summarised. `verbose` lists every finding. The totals always count everything."""
+    groups: dict[tuple[str, str], list[Finding]] = {}
+    for f in found:  # already sorted by level, then check
+        groups.setdefault((f.level, f.check), []).append(f)
+    out: list[str] = []
+    summarised: list[tuple[str, list[Finding]]] = []
+    for (level, check), rows in groups.items():
+        if level == "INFO" and not verbose:
+            summarised.append((check, rows))
+            continue
+        shown = rows if verbose or level == "HIGH" else rows[:MEDIUM_SHOWN]
+        out.append(f"\n[{level}] {check} ({len(rows)})")
+        out.append(f"  ask: {rows[0].ask}")
+        out.extend(listed_line(f) for f in shown)
+        if len(rows) > len(shown):
+            out.append(f"  … and {len(rows) - len(shown)} more (use --verbose)")
+    if summarised:
+        n = sum(len(rows) for _, rows in summarised)
+        out.append(f"\n[INFO] {n} finding(s) summarised, not listed (use --verbose to list them)")
+        for check, rows in summarised:
+            if check == "model-id":
+                ids = Counter(f.snippet for f in rows)
+                listing = ", ".join(f"{m} ({c})" for m, c in sorted(ids.items()))
+                out.append(f"  model-id ({len(rows)}, {len(ids)} distinct): {listing}. {MODEL_ID_ASK}")
+            else:
+                asks = {f.ask for f in rows}
+                ask = asks.pop() if len(asks) == 1 else SUMMARY_ASK.get(check, rows[0].ask)
+                out.append(f"  {check} ({len(rows)}): {ask}")
+    out.append("\n" + totals_line(found))
+    return out
+
+
+def render_self_test(found: list[Finding]) -> list[tuple[str, bool]]:
+    """Prove the quiet report hides nothing it must show. Padded with synthetic findings so
+    HIGH exceeds the old 25-per-check cap and MEDIUM exceeds MEDIUM_SHOWN."""
+    def fake(level: str, check: str, i: int, snippet: str = "") -> Finding:
+        return Finding(level, check, f"synthetic/{check}.ts", i, snippet or f"{check} hit {i}", f"ask for {check}")
+    sample = list(found)
+    sample += [fake("HIGH", "reader-no-writer", i) for i in range(1, 31)]
+    sample += [fake("MEDIUM", "swallowed-error", i) for i in range(1, MEDIUM_SHOWN + 4)]
+    sample += [fake("INFO", "metric-coalesce", i) for i in range(1, 5)]
+    sample += [fake("INFO", "model-id", i, mid) for i, mid in enumerate(["gpt-4o", "claude-x", "gpt-4o", "gpt-4o"], 1)]
+    sample.sort(key=lambda f: (-LEVELS[f.level], f.check, f.file, f.line))
+    quiet = render_text(sample)
+    loud = render_text(sample, verbose=True)
+    quiet_set, loud_set = set(quiet), set(loud)
+
+    every_high = all(listed_line(f) in quiet_set for f in sample if f.level == "HIGH")
+    info = [f for f in sample if f.level == "INFO"]
+    info_checks = Counter(f.check for f in info if f.check != "model-id")
+    summary_ok = bool(info_checks) and all(
+        any(l.startswith(f"  {c} ({n}): ") for l in quiet) for c, n in info_checks.items()) \
+        and not any(listed_line(f) in quiet_set for f in info)
+    ids = Counter(f.snippet for f in info if f.check == "model-id")
+    want = ", ".join(f"{m} ({c})" for m, c in sorted(ids.items()))
+    models_ok = len(ids) > 1 and any(l.startswith("  model-id (") and want in l for l in quiet)
+    medium_checks = {f.check for f in sample if f.level == "MEDIUM"}
+    medium_capped = all(
+        sum(listed_line(f) in quiet_set for f in sample if f.level == "MEDIUM" and f.check == c) <= MEDIUM_SHOWN
+        for c in medium_checks) and any(l.endswith("more (use --verbose)") for l in quiet)
+    verbose_all = all(listed_line(f) in loud_set for f in sample)
+    totals_ok = quiet[-1].strip() == loud[-1].strip() == totals_line(sample)
+    return [("default output lists every HIGH finding", every_high),
+            ("INFO summary names each collapsed check with its count", summary_ok),
+            ("model ids grouped, distinct, with counts", models_ok),
+            (f"MEDIUM collapsed after {MEDIUM_SHOWN} per check", medium_capped),
+            ("--verbose lists every finding", verbose_all),
+            ("totals count every level, quiet or verbose", totals_ok)]
+
+
 def self_test() -> int:
     fixtures = {
         "src/score.ts": """
@@ -363,18 +461,25 @@ expect(passRate).toBeGreaterThanOrEqual(0);
     missed_cases = [mh for mh in must_hit if mh not in hit]
     for check, rel in missed_cases:
         print(f"MISS {check} in {rel}")
-    ok = expected <= fired and not wrongly and not missed_cases
+    report = render_self_test(found)
+    for name, passed in report:
+        print(f"{'ok  ' if passed else 'FAIL'} output: {name}")
+    bad_output = sum(not passed for _, passed in report)
+    ok = expected <= fired and not wrongly and not missed_cases and not bad_output
     if wrongly:
         print("FALSE POSITIVE: reader-no-writer flagged `similarity`, which src/ingest.ts writes")
     print(f"\nself-test {'passed' if ok else 'FAILED'}: {len(expected & fired)}/{len(expected)} checks fired"
-          f"{'' if not wrongly else ', 1 false positive'}")
+          f"{'' if not wrongly else ', 1 false positive'}"
+          f"{'' if not bad_output else f', {bad_output} output check(s) failed'}")
     return 0 if ok else 1
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("path", nargs="?", type=Path)
-    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--json", action="store_true", help="every finding as JSON (always complete)")
+    ap.add_argument("--verbose", action="store_true",
+                    help="list every finding (default: every HIGH, the first 5 MEDIUM per check, INFO summarised)")
     ap.add_argument("--include-tests", action="store_true", help="also scan test files for code checks")
     ap.add_argument("--fail-on", choices=list(LEVELS), help="exit 1 if a finding at or above this level exists")
     ap.add_argument("--self-test", action="store_true")
@@ -391,18 +496,7 @@ def main() -> int:
     if a.json:
         print(json.dumps([asdict(f) for f in found], indent=2))
     else:
-        by = {}
-        for f in found:
-            by.setdefault(f.check, []).append(f)
-        for check, rows in by.items():
-            print(f"\n[{rows[0].level}] {check} ({len(rows)})")
-            print(f"  ask: {rows[0].ask}")
-            for f in rows[:25]:
-                print(f"  {f.file}:{f.line}  {f.snippet}")
-            if len(rows) > 25:
-                print(f"  ... {len(rows) - 25} more (use --json for all)")
-        counts = {lv: sum(f.level == lv for f in found) for lv in LEVELS}
-        print(f"\n{counts['HIGH']} HIGH, {counts['MEDIUM']} MEDIUM, {counts['INFO']} INFO — each is a place to read, not a verdict")
+        print("\n".join(render_text(found, a.verbose)))
     if a.fail_on and any(LEVELS[f.level] >= LEVELS[a.fail_on] for f in found):
         return 1
     return 0
