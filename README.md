@@ -34,6 +34,10 @@ ships a scanner that shows where to look first:
 
 *Real output, from a small made-up app with planted problems.*
 
+**Tested on real code:** on a real production RAG codebase of about 1,000 files, graded against
+an answer key written before the runs, a run with the skill found 5 of 5 issues and a run
+without it found 2.5. [How it was checked](#evidence) · [An example report](#an-example-report)
+
 ## Who it's for
 
 If you've shipped an AI feature (a chatbot, a RAG search, an AI score or recommendation)
@@ -64,6 +68,24 @@ measure. You don't need to read the code to find out which. Ask in plain words:
 | **Fixes proven to fail** | Each fix is one line: a log with identifiers, an "unavailable" state instead of 0, an assertion that a writer exists, an eval threshold that can be missed, or a cap. Each is broken once on purpose to prove it catches the problem. |
 | **Honesty about published numbers** | Accuracy and benchmark claims are checked for a date, a runnable case count and a command that still reproduces them. |
 | **A 0–10 score** | Every point cites evidence, and checks that don't apply to your product are marked N/A rather than scored 0. |
+
+### An example report
+
+A founder about to show investors an accuracy figure, a confidence score and a cost per query
+asked whether the numbers are real. The app is a made-up AI contract reviewer. One run
+answered:
+
+| | |
+|---|---|
+| **Score** | 1/10. Of seven numbers checked, five are fabricated and one is partly real. The seventh, the one handled correctly, is left alone. |
+| **"95% accuracy"** | The eval calls no model, compares nothing and can't fail. Only 15 of its 40 cases run; the rest hold placeholders. |
+| **The "Verified" badge** | Can't be earned from the app's own data, where confidence tops out at 60%. Any caller can forge it by sending the right metadata. |
+| **Cost per query** | Shows $0.0000 on real traffic, because usage is recorded only in debug mode. |
+| **The model** | The configured model is no longer in the provider's catalogue, so every request silently falls back to another, in a retry loop with no limit. |
+| **Proof** | Every fix comes with a test that fails on the original code and passes on the fix. |
+| **What to say instead** | Wording for next week's pitch that the code can back. |
+
+[Read the full answer](examples/signals-report.md), with the evidence behind each number.
 
 ## How it compares
 
